@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walmart Sales Forecasting — ML Project</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --panel: #121826;
+    --border: #232b3d;
+    --text: #e8eaf0;
+    --muted: #9aa4b8;
+    --accent: #1565c0;
+    --accent2: #0d47a1;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f9;
+      --panel: #ffffff;
+      --border: #e1e4ea;
+      --text: #14181f;
+      --muted: #5b6273;
+      --accent: #1565c0;
+      --accent2: #0d47a1;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 60%);
+    color: #fff;
+    padding: 2rem 1.5rem 1.25rem;
+  }
+  header h1 { margin: 0 0 .35rem; font-size: 1.6rem; }
+  header p { margin: 0; opacity: .85; max-width: 60rem; }
+  nav {
+    display: flex;
+    gap: .5rem;
+    padding: 0 1.5rem;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  nav button {
+    appearance: none;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: .95rem;
+    font-weight: 600;
+    padding: .9rem 1rem;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+  }
+  nav button.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+  main {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3rem;
+  }
+  .tab { display: none; }
+  .tab.active { display: block; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  table { border-collapse: collapse; width: 100%; margin: .75rem 0; }
+  th, td { text-align: left; padding: .5rem .75rem; border: 1px solid var(--border); font-size: .9rem; }
+  th { color: var(--muted); }
+  a { color: var(--accent); }
+  code { background: var(--border); padding: .1rem .35rem; border-radius: 4px; font-size: .85em; }
+  pre { background: var(--border); padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: .82rem; }
+  ul { padding-left: 1.2rem; }
+  .pdf-wrap {
+    width: 100%;
+    height: 85vh;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .pdf-wrap iframe { width: 100%; height: 100%; border: 0; }
+  .pdf-fallback { padding: 1rem 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛒 Walmart Weekly Sales Forecasting — ML Project</h1>
+  <p>Predicting Walmart's weekly sales per store/department from historical sales, store metadata, and economic indicators, with four modeling pipelines compared and served through a Streamlit app.</p>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="home">Home</button>
+  <button class="tab-btn" data-tab="report">Report</button>
+</nav>
+
+<main>
+
+  <section id="home" class="tab active">
+    <div class="card">
+      <h2>Overview</h2>
+      <p>The project walks through a full ML workflow on the classic
+        <a href="https://www.kaggle.com/c/walmart-recruiting-store-sales-forecasting" target="_blank" rel="noopener">Walmart Recruiting — Store Sales Forecasting</a> dataset:</p>
+      <ol>
+        <li>Merge and clean sales, store, and macroeconomic feature data</li>
+        <li>Engineer features (aggregated markdowns, holiday flags, IQR outlier capping)</li>
+        <li>Perform EDA on a normalized copy of the data (kept separate from the raw training data to avoid leakage/double-normalization)</li>
+        <li>Train and compare <strong>four</strong> regression approaches</li>
+        <li>Evaluate with MAE, RMSE, and R², and visualize predictions/residuals/feature importance</li>
+        <li>Serve predictions through a Streamlit web app where the user can pick which trained pipeline to use</li>
+      </ol>
+      <table>
+        <tr><th>Approach</th><th>Model</th><th>Normalization</th></tr>
+        <tr><td>1</td><td>Random Forest</td><td>MinMax-scaled economic features</td></tr>
+        <tr><td>2</td><td>Random Forest</td><td>Raw (unscaled) features</td></tr>
+        <tr><td>3</td><td>Linear Regression</td><td>MinMax-scaled economic features</td></tr>
+        <tr><td>4</td><td>XGBoost</td><td>Raw (unscaled) features</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Getting started</h2>
+      <p><strong>1. Install dependencies</strong></p>
+      <pre>pip install -r requirements.txt</pre>
+      <p><strong>2. Run the notebook</strong></p>
+      <p>Open <code>Codes/wm_sales_v8_with_xgboost.ipynb</code> in Jupyter to reproduce data cleaning, training, and evaluation.</p>
+      <p><strong>3. Run the Streamlit app</strong></p>
+      <pre>cd Codes/walmart_ml_app
+streamlit run app.py</pre>
+      <p>The app lets you pick between the Normalized RF, Unnormalized RF, Linear Regression, and XGBoost pipelines and get a live weekly sales prediction from store, department, date, and economic inputs.</p>
+    </div>
+
+    <div class="card">
+      <h2>Links</h2>
+      <ul>
+        <li><a href="https://github.com/yahiashazly00-lab/walmart-sales-forecasting-ml">Source code on GitHub</a></li>
+        <li><a href="https://github.com/yahiashazly00-lab/walmart-sales-forecasting-ml/blob/master/Poster-ml.pptx">Project poster (pptx)</a></li>
+        <li><a href="https://github.com/yahiashazly00-lab/walmart-sales-forecasting-ml/blob/master/ML_Presentation.pptx">Slide deck (pptx)</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="report" class="tab">
+    <div class="pdf-wrap">
+      <iframe src="report.pdf" title="Final report PDF"></iframe>
+    </div>
+    <p class="pdf-fallback">If the PDF doesn't display above, <a href="report.pdf" target="_blank" rel="noopener">open it directly</a>.</p>
+  </section>
+
+</main>
+
+<script>
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
