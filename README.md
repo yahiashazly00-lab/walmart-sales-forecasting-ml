@@ -24,8 +24,7 @@ The project walks through a full ML workflow on the classic [Walmart Recruiting 
 ```
 .
 ├── Codes/
-│   ├── wm_sales_v8_with_xgboost.ipynb   # Final, most complete notebook (all 4 pipelines)
-│   ├── wm_sales_v*.ipynb                # Earlier iterations, kept for history/reference
+│   ├── wm_sales_v8_with_xgboost.ipynb   # Final notebook — data prep, EDA, all 4 pipelines
 │   ├── xgboost_cells_to_append.py       # Standalone XGBoost training script
 │   ├── *.pkl / *.json                   # Small trained models + feature-order metadata
 │   ├── *.png                            # Model comparison / diagnostic plots
@@ -38,12 +37,10 @@ The project walks through a full ML workflow on the classic [Walmart Recruiting 
 ├── archive.zip                          # Supplementary retail inventory dataset
 ├── MachineLearning_Project Decription.pdf
 ├── ML_Presentation.pptx
-├── Poster-ml.pdf / Poster-ml.pptx
-├── walmart_ml_report_v2 (1).pdf / .docx
+├── Poster-ml.pptx
+├── walmart_ml_report_v2 (1).docx
 └── requirements.txt
 ```
-
-> The notebooks are numbered `v1` → `v8`; each version fixes a bug or adds a pipeline from the previous one (see the markdown cells at the top of each notebook for a changelog). **`wm_sales_v8_with_xgboost.ipynb`** is the final version and the one to read/run.
 
 ## ⚠️ Note on trained model files
 
@@ -83,6 +80,6 @@ Source: Kaggle's Walmart Recruiting — Store Sales Forecasting competition data
 ## Docs
 
 - [`MachineLearning_Project Decription.pdf`](./MachineLearning_Project%20Decription.pdf) — original project brief
-- [`walmart_ml_report_v2 (1).pdf`](./walmart_ml_report_v2%20(1).pdf) — full write-up
-- [`Poster-ml.pdf`](./Poster-ml.pdf) — project poster
+- [`walmart_ml_report_v2 (1).docx`](./walmart_ml_report_v2%20(1).docx) — full write-up
+- [`Poster-ml.pptx`](./Poster-ml.pptx) — project poster
 - [`ML_Presentation.pptx`](./ML_Presentation.pptx) — slide deck
