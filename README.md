@@ -35,7 +35,6 @@ The project walks through a full ML workflow on the classic [Walmart Recruiting 
 │   ├── stores.csv                       # Store type & size
 │   └── features.xlsx                    # CPI, unemployment, fuel price, markdowns, temperature
 ├── archive.zip                          # Supplementary retail inventory dataset
-├── MachineLearning_Project Decription.pdf
 ├── ML_Presentation.pptx
 ├── Poster-ml.pptx
 ├── walmart_ml_report_v2 (1).docx
@@ -79,7 +78,6 @@ Source: Kaggle's Walmart Recruiting — Store Sales Forecasting competition data
 
 ## Docs
 
-- [`MachineLearning_Project Decription.pdf`](./MachineLearning_Project%20Decription.pdf) — original project brief
 - [`walmart_ml_report_v2 (1).docx`](./walmart_ml_report_v2%20(1).docx) — full write-up
 - [`Poster-ml.pptx`](./Poster-ml.pptx) — project poster
 - [`ML_Presentation.pptx`](./ML_Presentation.pptx) — slide deck
