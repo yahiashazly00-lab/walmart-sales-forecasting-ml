@@ -1,0 +1,30 @@
+# Large trained model artifacts (2-3GB each — exceed GitHub's 100MB file limit).
+# Regenerate by running Codes/wm_sales_v8_with_xgboost.ipynb end to end.
+Codes/model.pkl
+Codes/model_raw.pkl
+Codes/model_norm.pkl
+Codes/walmart_ml_app/model.pkl
+Codes/walmart_ml_app/model_raw.pkl
+Codes/walmart_ml_app/model_norm.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/

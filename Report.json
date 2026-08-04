@@ -1,0 +1,706 @@
+const {
+  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+  ImageRun, Header, Footer, AlignmentType, HeadingLevel, BorderStyle,
+  WidthType, ShadingType, VerticalAlign, PageNumber, PageBreak,
+  LevelFormat, TableOfContents
+} = require('docx');
+const fs = require('fs');
+
+const CONTENT_W = 9360; // US Letter 1" margins
+const COL2A = 4680;
+const COL2B = 4680;
+const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
+const borders = { top: border, bottom: border, left: border, right: border };
+const headerBorder = { style: BorderStyle.SINGLE, size: 1, color: "1F4E79" };
+
+// --- helpers ---
+function h1(text) {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_1,
+    spacing: { before: 360, after: 120 },
+    children: [new TextRun({ text, bold: true, size: 32, font: "Arial", color: "1F4E79" })]
+  });
+}
+function h2(text) {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 240, after: 80 },
+    children: [new TextRun({ text, bold: true, size: 26, font: "Arial", color: "2E75B6" })]
+  });
+}
+function h3(text) {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_3,
+    spacing: { before: 180, after: 60 },
+    children: [new TextRun({ text, bold: true, size: 24, font: "Arial", color: "2E74B5" })]
+  });
+}
+function body(text, opts = {}) {
+  return new Paragraph({
+    spacing: { after: 120 },
+    alignment: opts.center ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
+    children: [new TextRun({ text, size: 22, font: "Arial", ...opts })]
+  });
+}
+function bold(text) {
+  return new TextRun({ text, bold: true, size: 22, font: "Arial" });
+}
+function normal(text) {
+  return new TextRun({ text, size: 22, font: "Arial" });
+}
+function italic(text) {
+  return new TextRun({ text, italics: true, size: 22, font: "Arial" });
+}
+function mixed(...runs) {
+  return new Paragraph({ spacing: { after: 120 }, alignment: AlignmentType.JUSTIFIED, children: runs });
+}
+function caption(text) {
+  return new Paragraph({
+    spacing: { before: 40, after: 160 },
+    alignment: AlignmentType.CENTER,
+    children: [new TextRun({ text, italics: true, size: 20, font: "Arial", color: "595959" })]
+  });
+}
+function bullet(text, sub = false) {
+  return new Paragraph({
+    numbering: { reference: "bullets", level: sub ? 1 : 0 },
+    spacing: { after: 60 },
+    children: [new TextRun({ text, size: 22, font: "Arial" })]
+  });
+}
+function numbered(text, lvl = 0) {
+  return new Paragraph({
+    numbering: { reference: "numbers", level: lvl },
+    spacing: { after: 60 },
+    children: [new TextRun({ text, size: 22, font: "Arial" })]
+  });
+}
+function spacer(before = 120) {
+  return new Paragraph({ spacing: { before, after: 0 }, children: [new TextRun("")] });
+}
+function hrule() {
+  return new Paragraph({
+    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "2E75B6", space: 1 } },
+    spacing: { before: 120, after: 120 },
+    children: [new TextRun("")]
+  });
+}
+function pageBreak() {
+  return new Paragraph({ children: [new PageBreak()] });
+}
+
+function img(path, widthPx, heightPx, maxWin = 8800) {
+  const data = fs.readFileSync(path);
+  const scale = Math.min(1, maxWin / widthPx);
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 120, after: 60 },
+    children: [new ImageRun({
+      type: "png",
+      data,
+      transformation: { width: Math.round(widthPx * scale * 0.094), height: Math.round(heightPx * scale * 0.094) },
+      altText: { title: "Figure", description: "Chart from notebook", name: "chart" }
+    })]
+  });
+}
+
+// --- metric table helper ---
+function metricsTable(headers, rows) {
+  const colCount = headers.length;
+  const colW = Math.floor(CONTENT_W / colCount);
+  const cols = headers.map(() => colW);
+
+  return new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    columnWidths: cols,
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: headers.map(h => new TableCell({
+          borders,
+          width: { size: colW, type: WidthType.DXA },
+          shading: { fill: "1F4E79", type: ShadingType.CLEAR },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: h, bold: true, size: 20, font: "Arial", color: "FFFFFF" })]
+          })]
+        }))
+      }),
+      ...rows.map((row, ri) => new TableRow({
+        children: row.map((cell, ci) => new TableCell({
+          borders,
+          width: { size: colW, type: WidthType.DXA },
+          shading: { fill: ri % 2 === 0 ? "EBF3FB" : "FFFFFF", type: ShadingType.CLEAR },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          children: [new Paragraph({
+            alignment: ci === 0 ? AlignmentType.LEFT : AlignmentType.CENTER,
+            children: [new TextRun({ text: cell, size: 20, font: "Arial" })]
+          })]
+        }))
+      }))
+    ]
+  });
+}
+
+// ─── Image map ───────────────────────────────────────────────────────────────
+const IMGS = {
+  holidayEffect:    { path: '/home/claude/nb_images/cell20_out00.png', w: 1384, h: 492 },
+  markdownTemporal: { path: '/home/claude/nb_images/cell21_out00.png', w: 1384, h: 492 },
+  econFeatures:     { path: '/home/claude/nb_images/cell22_out00.png', w: 1583, h: 2158 },
+  modelCompare:     { path: '/home/claude/nb_images/cell35_out00.png', w: 1483, h: 492 },
+  featImp:          { path: '/home/claude/nb_images/cell36_out01.png', w: 1784, h: 688 },
+  rfActvsPred:      { path: '/home/claude/nb_images/cell37_out00.png', w: 1584, h: 590 },
+  threeModelBar:    { path: '/home/claude/nb_images/cell47_out01.png', w: 1583, h: 492 },
+  lrActvsPred:      { path: '/home/claude/nb_images/cell48_out00.png', w: 1584, h: 590 },
+  lrResiduals:      { path: '/home/claude/nb_images/cell49_out00.png', w: 1784, h: 492 },
+  lrCoef:           { path: '/home/claude/nb_images/cell50_out00.png', w: 1784, h: 786 },
+  fourModelBar:     { path: '/home/claude/nb_images/cell55_out01.png', w: 1783, h: 492 },
+  xgbActvsPred:     { path: '/home/claude/nb_images/cell56_out00.png', w: 1584, h: 590 },
+  xgbResiduals:     { path: '/home/claude/nb_images/cell57_out00.png', w: 1784, h: 492 },
+  xgbFeatImp:       { path: '/home/claude/nb_images/cell58_out00.png', w: 1782, h: 786 },
+};
+function figure(key, captionText) {
+  const { path, w, h } = IMGS[key];
+  return [img(path, w, h), caption(captionText)];
+}
+
+// ─── Cover page ──────────────────────────────────────────────────────────────
+function coverSection() {
+  return [
+    spacer(1800),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [new TextRun({ text: "Nile University", bold: true, size: 28, font: "Arial", color: "1F4E79" })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [new TextRun({ text: "School of Engineering and Applied Sciences", size: 24, font: "Arial", color: "2E75B6" })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [new TextRun({ text: "Communication and Computer Engineering Program", size: 24, font: "Arial", color: "2E75B6" })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 300 },
+      children: [new TextRun({ text: "ECE471 — Machine Learning", bold: true, size: 24, font: "Arial", color: "2E75B6" })]
+    }),
+    hrule(),
+    spacer(300),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 120 },
+      children: [new TextRun({ text: "Walmart Retail Sales Forecasting", bold: true, size: 48, font: "Arial", color: "1F4E79" })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 600 },
+      children: [new TextRun({ text: "A Dual-Pipeline Machine Learning System", italics: true, size: 30, font: "Arial", color: "595959" })]
+    }),
+    hrule(),
+    spacer(400),
+    // team table
+    new Table({
+      width: { size: 6000, type: WidthType.DXA },
+      columnWidths: [3000, 1500, 1500],
+      rows: [
+        new TableRow({
+          tableHeader: true,
+          children: ["Student Name", "Student ID", "Contribution"].map(t => new TableCell({
+            borders,
+            width: { size: 2000, type: WidthType.DXA },
+            shading: { fill: "1F4E79", type: ShadingType.CLEAR },
+            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+            children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: t, bold: true, size: 20, font: "Arial", color: "FFFFFF" })] })]
+          }))
+        }),
+        ...[ ["Yahia Zakaria Shazly", "—", "35%"], ["Ahmed Hassan Shata", "—", "35%"], ["Omar El-Beltagy", "—", "30%"] ].map((row, ri) =>
+          new TableRow({ children: row.map((c, ci) => new TableCell({
+            borders,
+            width: { size: 2000, type: WidthType.DXA },
+            shading: { fill: ri % 2 === 0 ? "EBF3FB" : "FFFFFF", type: ShadingType.CLEAR },
+            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+            children: [new Paragraph({ alignment: ci === 0 ? AlignmentType.LEFT : AlignmentType.CENTER, children: [new TextRun({ text: c, size: 20, font: "Arial" })] })]
+          })) })
+        )
+      ]
+    }),
+    spacer(400),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [new TextRun({ text: "Date Submitted: May 2026", size: 22, font: "Arial", color: "595959" })]
+    }),
+    pageBreak()
+  ];
+}
+
+// ─── SECTION 1 — Problem Description ─────────────────────────────────────────
+function section1() {
+  return [
+    h1("1. Problem Description"),
+    body("Retail demand forecasting is a fundamental challenge in supply chain management. Accurate weekly sales predictions enable retailers to optimize inventory levels, allocate staffing resources, plan promotional campaigns, and minimize both overstock and stockout scenarios. Walmart, as one of the world's largest retailers, operates thousands of stores across the United States, each subject to unique local conditions including regional economic factors, seasonal trends, and promotional activity."),
+    body("This project addresses the problem of predicting weekly department-level sales for Walmart stores using historical transactional data combined with external macroeconomic and store-level features. The forecasting task is formulated as a supervised regression problem, where the model learns from past observations to predict future sales figures."),
+    body("Key challenges inherent to this problem include:"),
+    bullet("High dimensionality introduced by one-hot encoding of store, department, and store-type identifiers, resulting in over 130 features."),
+    bullet("Significant sparsity in promotional markdown data — approximately 64% of entries carry a zero markdown value, reflecting the pre-November 2011 period before Walmart launched broad promotional programs."),
+    bullet("Non-linear relationships between economic indicators (CPI, unemployment, fuel price, temperature) and weekly sales that simple linear models cannot capture adequately."),
+    bullet("Temporal dependency in the data, necessitating a chronological train/test split to prevent data leakage from future weeks into the training set."),
+    spacer(120),
+    body("To address these challenges, this project implements four machine learning models organized within a dual-pipeline architecture: a Normalized Random Forest, an Unnormalized Random Forest, a Linear Regression baseline, and an XGBoost gradient-boosted ensemble. The system is deployed as an interactive Streamlit web application, enabling real-time sales prediction through a user-facing interface."),
+  ];
+}
+
+// ─── SECTION 2 — Data Preparation ────────────────────────────────────────────
+function section2() {
+  return [
+    h1("2. Data Preparation"),
+    h2("2.1 Dataset Description"),
+    body("The Walmart Store Sales Forecasting dataset is sourced from the Kaggle competition of the same name. It consists of four inter-related files covering 45 stores over a period from February 2010 to October 2012 (approximately 143 weeks)."),
+    spacer(60),
+    metricsTable(
+      ["File", "Format", "Shape", "Description"],
+      [
+        ["train.csv", "CSV", "421,570 × 5", "Weekly sales per store-department pair with holiday flag"],
+        ["features.xlsx", "Excel", "8,190 × 12", "Store-level economic and promotional features per week"],
+        ["stores.csv", "CSV", "45 × 3", "Store identifiers, type classification (A/B/C), and physical size"],
+        ["test.csv", "CSV", "115,064 × 4", "Hold-out prediction set (no Weekly_Sales column)"],
+      ]
+    ),
+    spacer(120),
+    h2("2.2 Feature Inventory"),
+    body("After merging all four files on shared keys (Store, Date, IsHoliday), the consolidated full_df dataset contains the following features:"),
+    spacer(60),
+    metricsTable(
+      ["Feature", "Type", "Description"],
+      [
+        ["Store", "Integer (OHE)", "Store identifier (1–45), one-hot encoded"],
+        ["Dept", "Integer (OHE)", "Department identifier (1–99), one-hot encoded"],
+        ["Date", "Datetime", "Week ending date — used for chronological split, then dropped"],
+        ["IsHoliday", "Binary (int)", "1 if the week contains a major US holiday, 0 otherwise"],
+        ["Temperature", "Continuous (°F)", "Average regional temperature for that week"],
+        ["Fuel_Price", "Continuous ($)", "Regional average fuel price per gallon"],
+        ["CPI", "Continuous", "Consumer Price Index — measure of purchasing power"],
+        ["Unemployment", "Continuous (%)", "Regional unemployment rate"],
+        ["MarkDown", "Continuous ($)", "Aggregated sum of five anonymized markdown columns (MD1–MD5)"],
+        ["Type", "Categorical (OHE)", "Store type: A (largest), B, or C (smallest)"],
+        ["Size", "Continuous (sq ft)", "Physical store floor area — structural feature left on raw scale"],
+        ["Weekly_Sales", "Target ($)", "Aggregate weekly sales for a given store-department pair"],
+      ]
+    ),
+    spacer(120),
+    h2("2.3 Data Cleaning"),
+    body("The cleaning pipeline proceeded through the following steps:"),
+    numbered("Date parsing: Date columns across all three files were cast to pandas datetime objects to enable chronological sorting and temporal feature analysis."),
+    numbered("Null handling: MarkDown columns MD1–MD5 exhibited up to 65% missing values, reflecting the absence of promotional activity in the pre-November 2011 period. All five columns were imputed with zero (reflecting no markdown), clipped at zero to remove negative entries, and then summed into a single aggregated MarkDown feature."),
+    numbered("Boolean encoding: The IsHoliday flag was cast from boolean to integer (0/1) for compatibility with scikit-learn estimators."),
+    numbered("Dataset merge: stores_df was left-joined onto features_df on the Store key to preserve the Size column, which is critical for model accuracy. The resulting features frame was then joined to train_df on [Store, Date, IsHoliday]."),
+    numbered("Outlier capping: An IQR-based capping procedure was applied to four continuous economic features — Temperature, Fuel_Price, CPI, and Unemployment — prior to normalization. Values outside the [Q1 − 1.5·IQR, Q3 + 1.5·IQR] interval were clipped to the boundary, reducing the influence of sensor anomalies and data recording errors."),
+    spacer(120),
+    h2("2.4 Feature Engineering"),
+    body("The five individual markdown columns were transformed into a single composite MarkDown feature:"),
+    bullet("Fill NaN → 0 (no markdown if unreported)"),
+    bullet("Clip negative values to 0 (data quality correction)"),
+    bullet("Sum all five: MarkDown = MD1 + MD2 + MD3 + MD4 + MD5"),
+    spacer(80),
+    body("One-hot encoding was applied to the categorical columns Store, Dept, and Type using pandas get_dummies with drop_first=True to avoid multicollinearity. This expanded the feature matrix to 133 columns. Residual NaN values after encoding were imputed with the column median."),
+  ];
+}
+
+// ─── SECTION 3 — Methods and Models ──────────────────────────────────────────
+function section3() {
+  return [
+    h1("3. Methods and Models"),
+    h2("3.1 Overall Architecture"),
+    body("The project implements a dual-pipeline architecture that trains the same set of models twice — once with MinMax normalization applied to numeric features and once without — enabling a rigorous empirical comparison of normalization impact on tree-based ensembles versus linear models."),
+    spacer(60),
+    metricsTable(
+      ["Pipeline", "Normalization", "Models Applied", "Saved Artifacts"],
+      [
+        ["Approach 1 — Normalized", "MinMaxScaler on 5 numeric features", "RF, Linear Regression", "model_norm.pkl, scaler.pkl"],
+        ["Approach 2 — Unnormalized", "None — raw feature scales", "RF, XGBoost", "model_raw.pkl"],
+      ]
+    ),
+    spacer(120),
+    h2("3.2 Chronological Train/Test Split"),
+    body("A chronological 80/20 split was applied to prevent temporal data leakage. All rows were sorted by Date ascending; the first 80% formed the training set and the final 20% formed the test set. No random shuffling was performed."),
+    spacer(60),
+    metricsTable(
+      ["Split", "Row Count", "Date Range"],
+      [
+        ["Training set", "337,256 rows", "2010-02-05 → 2012-04-13"],
+        ["Test set", "84,314 rows", "2012-04-13 → 2012-10-26"],
+      ]
+    ),
+    spacer(120),
+    h2("3.3 Normalization Strategy"),
+    body("MinMaxScaler was fit exclusively on training rows and applied via .transform() on both train and test sets. This prevents data leakage: the scaler has no knowledge of the test distribution at fit time. The five continuous economic/promotional features were normalized: Temperature, Fuel_Price, CPI, Unemployment, and MarkDown."),
+    body("The Size feature was deliberately excluded from scaling because Random Forest uses rank-order split comparisons, making it invariant to absolute scale. Maintaining Size on its raw scale (34,875–219,622 sq ft) preserves the tree's interpretability for that feature."),
+    spacer(120),
+    h2("3.4 Random Forest Regressor"),
+    body("Random Forest is a tree-based ensemble that trains n_estimators independent decision trees on bootstrap samples of the training data (bagging) and averages their predictions. Each split considers a random subset of features (sqrt(n_features) by default for classification; n_features/3 for regression), reducing inter-tree correlation and improving generalization."),
+    mixed(bold("Key parameters: "), normal("n_estimators=100, random_state=42, n_jobs=−1 (all cores). Training time: ~310–340 seconds per pipeline.")),
+    body("Because Random Forest partitions feature space using rank-order thresholds rather than Euclidean distance metrics, it is theoretically invariant to monotonic feature transformations including normalization. This project empirically verifies this property by training both a normalized and unnormalized Random Forest and comparing results."),
+    spacer(120),
+    h2("3.5 Linear Regression"),
+    body("Ordinary Least Squares (OLS) Linear Regression minimizes the sum of squared residuals between predicted and actual values. It assumes a linear relationship between the feature matrix X and the target y, expressed as:"),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 80, after: 80 },
+      children: [new TextRun({ text: "ŷ = β₀ + β₁x₁ + β₂x₂ + … + βₙxₙ", italics: true, size: 22, font: "Arial" })]
+    }),
+    body("Unlike tree-based methods, Linear Regression is scale-sensitive: features with large numeric ranges dominate the coefficient estimation. The normalized feature set (X_train_norm) was therefore reused directly for the Linear Regression pipeline, requiring no additional preprocessing."),
+    mixed(bold("Training time: "), normal("approximately 5.65 seconds — significantly faster than ensemble methods.")),
+    spacer(120),
+    h2("3.6 XGBoost Regressor"),
+    body("XGBoost (eXtreme Gradient Boosting) is a gradient-boosted decision tree ensemble. Unlike Random Forest, which trains trees in parallel on bootstrap samples, XGBoost trains trees sequentially — each tree corrects the residual errors of the cumulative ensemble. The objective function combines a differentiable loss term with an explicit regularization term:"),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 80, after: 80 },
+      children: [new TextRun({ text: "L(φ) = Σᵢ l(ŷᵢ, yᵢ) + Σₖ Ω(fₖ)   where  Ω(f) = γT + ½λ‖w‖²", italics: true, size: 22, font: "Arial" })]
+    }),
+    body("XGBoost is scale-invariant by the same rank-order argument as Random Forest; the unnormalized feature set (X_train_raw) was therefore used directly."),
+    spacer(60),
+    metricsTable(
+      ["Hyperparameter", "Value", "Rationale"],
+      [
+        ["n_estimators", "300", "More trees than RF to compensate for lower per-tree strength"],
+        ["learning_rate", "0.1", "Moderate shrinkage — balances speed and generalization"],
+        ["max_depth", "6", "Slightly shallower than RF default to reduce overfitting"],
+        ["subsample", "0.8", "80% row sampling per tree — stochastic gradient boosting"],
+        ["colsample_bytree", "0.8", "80% column sampling per tree"],
+        ["random_state", "42", "Reproducibility"],
+      ]
+    ),
+    mixed(bold("Training time: "), normal("approximately 13.6 seconds — significantly faster than Random Forest due to more efficient tree construction.")),
+    spacer(120),
+    h2("3.7 Streamlit Deployment"),
+    body("Both the normalized and unnormalized Random Forest pipelines, along with Linear Regression and XGBoost, were serialized using joblib and deployed in a Streamlit web application. The app allows users to select a prediction pipeline, input store and department identifiers, adjust economic and promotional sliders, and receive an instant weekly sales forecast. The MarkDown slider range was set to $0–$200,000 to cover the full training distribution (max = $160,510.61), ensuring model responsiveness across the complete input domain."),
+  ];
+}
+
+// ─── SECTION 4 — Results and Evaluation ──────────────────────────────────────
+function section4() {
+  return [
+    h1("4. Results and Evaluation"),
+    h2("4.1 Evaluation Metrics"),
+    body("Three standard regression metrics were used to assess all models on the held-out test set:"),
+    bullet("MAE (Mean Absolute Error): Average absolute deviation between predicted and actual weekly sales, expressed in dollars. More interpretable and less sensitive to extreme outliers than MSE."),
+    bullet("RMSE (Root Mean Squared Error): Square root of the average squared deviation. Penalizes large prediction errors more heavily; useful for identifying systematic prediction failures."),
+    bullet("R² (Coefficient of Determination): Proportion of variance in weekly sales explained by the model (range 0–1). An R² of 0.94 indicates that 94% of sales variance is captured by the model."),
+    spacer(120),
+    h2("4.2 Exploratory Data Analysis"),
+    body("EDA was conducted on a separate normalized copy (full_df_eda) created exclusively for visualization purposes. The original full_df was left unchanged to prevent double-normalization during model training."),
+    spacer(80),
+    ...figure('holidayEffect', "Figure 1: Weekly sales distribution by holiday vs. non-holiday weeks. Holiday weeks show a wider spread and higher median, confirming measurable promotional impact."),
+    spacer(80),
+    ...figure('markdownTemporal', "Figure 2: Markdown vs. weekly sales split before and after November 2011. Pre-2011 data shows zero markdown (feature inactive); post-2011 reveals a positive correlation."),
+    spacer(80),
+    ...figure('econFeatures', "Figure 3: Economic features (Temperature, Fuel Price, CPI, Unemployment) plotted against weekly sales for holiday and non-holiday weeks post-November 2011. No strong linear trend is visible for any single feature, motivating the use of non-linear models."),
+    spacer(120),
+    h2("4.3 Normalized vs. Unnormalized Random Forest"),
+    body("Both Random Forest models were evaluated on the chronological test set. The results confirm that normalization has no meaningful effect on tree-based ensemble performance:"),
+    spacer(60),
+    metricsTable(
+      ["Metric", "Normalized RF", "Unnormalized RF", "Difference"],
+      [
+        ["MAE ($)", "$2,653.58", "$2,653.04", "$0.54"],
+        ["RMSE ($)", "$5,297.52", "$5,284.25", "$13.27"],
+        ["Test R²", "0.9417", "0.9420", "0.0003"],
+        ["Train R²", "0.9914", "0.9914", "0.0000"],
+        ["Overfit Gap", "0.0496", "0.0494", "0.0002"],
+      ]
+    ),
+    spacer(80),
+    ...figure('modelCompare', "Figure 4: Side-by-side bar comparison of MAE, RMSE, and R² for Normalized vs. Unnormalized Random Forest on the test set. The near-identical bars confirm normalization is irrelevant for tree splits."),
+    spacer(80),
+    ...figure('rfActvsPred', "Figure 5: Actual vs. Predicted weekly sales scatter plots for both Random Forest pipelines. The tight clustering around the diagonal confirms high predictive accuracy for typical sales values. Outliers at high sales values correspond to large-volume departments (e.g., Dept 92, 95)."),
+    spacer(80),
+    ...figure('featImp', "Figure 6: Top 15 feature importance scores for both RF pipelines. Store Size dominates at ~18.9%, followed by high-volume department dummies (Dept_92 at ~10.2%, Dept_95 at ~8.6%). MarkDown ranks #19 at ~1.09%, reflecting its sparsity and weak marginal signal."),
+    spacer(120),
+    h2("4.4 Linear Regression Results"),
+    body("Linear Regression was trained on the normalized feature set (X_train_norm) to ensure coefficient estimates are not dominated by features with large raw ranges. The model converged in 5.65 seconds."),
+    spacer(60),
+    metricsTable(
+      ["Metric", "Training Set", "Test Set"],
+      [
+        ["MAE ($)", "$8,211.85", "$7,981.93"],
+        ["RMSE ($)", "$13,586.26", "$12,126.47"],
+        ["R²", "0.6479", "0.6947"],
+      ]
+    ),
+    spacer(80),
+    ...figure('lrActvsPred', "Figure 7: Linear Regression — Actual vs. Predicted weekly sales for training and test sets. The fan-shaped scatter indicates heteroscedasticity: errors increase with sales magnitude, a violation of Linear Regression's homoscedasticity assumption."),
+    spacer(80),
+    ...figure('lrResiduals', "Figure 8: Linear Regression residual diagnostics — residuals vs. fitted values (left), residual distribution (center), and Q-Q plot (right). The structured residual pattern confirms that the linear model underfits systematic non-linearities in the data."),
+    spacer(80),
+    ...figure('lrCoef', "Figure 9: Top 20 Linear Regression coefficients by absolute magnitude. Department dummies (Dept_92, Dept_95, Dept_38) carry the largest positive coefficients, consistent with their high-volume nature. The intercept absorbs baseline sales."),
+    spacer(120),
+    h2("4.5 XGBoost Results"),
+    spacer(60),
+    metricsTable(
+      ["Metric", "Training Set", "Test Set"],
+      [
+        ["MAE ($)", "$3,897.49", "$3,908.41"],
+        ["RMSE ($)", "$7,474.26", "$6,261.15"],
+        ["R²", "0.9183", "0.9201"],
+      ]
+    ),
+    spacer(80),
+    ...figure('xgbActvsPred', "Figure 10: XGBoost — Actual vs. Predicted weekly sales. The scatter is tighter than Linear Regression but slightly wider than Random Forest, particularly at high sales magnitudes. R² = 0.9201 confirms strong predictive capacity."),
+    spacer(80),
+    ...figure('xgbResiduals', "Figure 11: XGBoost residual diagnostics. The residual distribution is approximately normal and centered near zero, with less structured pattern than Linear Regression, indicating a better-calibrated model."),
+    spacer(80),
+    ...figure('xgbFeatImp', "Figure 12: XGBoost feature importance (top 20). The distribution mirrors the Random Forest ranking: Size and department dummies dominate. XGBoost assigns slightly more importance to economic features than RF, likely due to sequential correction of residuals."),
+    spacer(120),
+    h2("4.6 Four-Model Comparison"),
+    spacer(60),
+    metricsTable(
+      ["Metric", "Norm RF", "Raw RF", "Linear Reg", "XGBoost"],
+      [
+        ["MAE ($)", "$2,653.58", "$2,653.04", "$7,981.93", "$3,908.41"],
+        ["RMSE ($)", "$5,297.52", "$5,284.25", "$12,126.47", "$6,261.15"],
+        ["Test R²", "0.9417", "0.9420", "0.6947", "0.9201"],
+        ["Train R²", "0.9914", "0.9914", "0.6479", "0.9183"],
+        ["Train time", "~337s", "~310s", "~6s", "~14s"],
+      ]
+    ),
+    spacer(80),
+    ...figure('fourModelBar', "Figure 13: Four-model comparison bar chart — MAE, RMSE, and R² across all four approaches. Both Random Forest variants consistently outperform XGBoost, which in turn substantially outperforms Linear Regression."),
+    ...figure('threeModelBar', "Figure 14: Three-model comparison (Normalized RF, Unnormalized RF, Linear Regression) on test metrics. The near-identical RF bars contrast with the substantially weaker Linear Regression performance."),
+  ];
+}
+
+// ─── SECTION 5 — Discussion ───────────────────────────────────────────────────
+function section5() {
+  return [
+    h1("5. Discussion"),
+    h2("5.1 Model Performance Analysis"),
+    body("The experimental results reveal a clear performance hierarchy across the four models:"),
+    body("Random Forest (both pipelines) achieves the strongest test performance, with an R² of approximately 0.942 and MAE under $2,654. The minimal gap between training and test R² (0.0494–0.0496) indicates well-controlled overfitting, attributable to the ensemble's inherent variance-reduction mechanism and the large, diverse training set."),
+    body("XGBoost occupies a middle position with R² = 0.920 and MAE of $3,908. While XGBoost typically outperforms Random Forest on tabular datasets, the opposite occurs here due to dataset characteristics: the feature matrix is dominated by high-cardinality one-hot encodings of stores and departments. Random Forest's parallel bagging with per-tree column subsampling handles this sparse, high-dimensional space more effectively than XGBoost's sequential boosting. Additionally, XGBoost's training time (13.6s) is significantly faster than Random Forest (~310s), representing a favorable efficiency-accuracy trade-off for production deployment."),
+    body("Linear Regression performs substantially worse (R² = 0.695, MAE = $7,982), confirming that the weekly sales prediction task has significant non-linear structure that a linear model cannot capture. The residual analysis shows a fan-shaped pattern (heteroscedasticity) and structured Q-Q plot deviations, both indicating systematic violation of the OLS assumptions of linearity and homoscedasticity in this dataset."),
+    spacer(120),
+    h2("5.2 Normalization and Tree-Based Models"),
+    body("A central finding of this study is the empirical confirmation that normalization has essentially zero impact on Random Forest performance: the MAE difference is $0.54, R² difference is 0.0003, and train/test overfit gap difference is 0.0002. This aligns with the theoretical expectation — decision tree splits are determined by the best threshold for a single feature at a time, and MinMax scaling preserves rank order, leaving all split boundaries mathematically equivalent."),
+    body("This finding has practical implications: for Random Forest (and gradient-boosted tree variants), the engineering overhead of fitting, saving, versioning, and applying a MinMax scaler provides no accuracy benefit. The normalized pipeline was retained in deployment because it enables Linear Regression to run on the same preprocessed feature set without a separate preprocessing chain."),
+    spacer(120),
+    h2("5.3 Feature Importance Insights"),
+    body("Across all non-linear models, the feature importance analysis consistently identifies Store Size as the single most important predictor (~18.9%), followed by high-volume department dummies (Dept_92, Dept_95, Dept_38). This reflects the fundamental retail intuition that a store's physical footprint — a proxy for product range and customer capacity — largely determines its sales potential, and that certain departments (e.g., grocery, electronics) generate disproportionately high weekly revenue."),
+    body("MarkDown ranks #19 of 133 features at ~1.09% importance, despite being a designated promotional metric. This low ranking is explained by the sparsity analysis: 64.1% of MarkDown values are zero (representing all pre-November 2011 data). The tree splits on the dominant Store and Dept identifiers early in each tree, leaving MarkDown as a marginal refinement signal. However, post-2011 data shows a Pearson correlation of +0.123 with weekly sales, confirming that MarkDown does carry a real signal — it simply cannot compete with the stronger identity-based signals in this dataset."),
+    spacer(120),
+    h2("5.4 Deployment Considerations"),
+    body("The Streamlit application exposes both normalized and unnormalized pipelines through a unified interface. Key deployment decisions include:"),
+    bullet("Slider range for MarkDown: Set to $0–$200,000 to cover the full training maximum of $160,510.61. A slider capped at $5,000 (tested in earlier versions) represents only 3.1% of the training range and produces near-zero model response — a subtle but critical UX bug."),
+    bullet("Separate scaler.pkl: The MinMax scaler fitted in the normalized pipeline is shared between the Normalized RF and Linear Regression prediction paths, reducing file redundancy."),
+    bullet("XGBoost does not require a scaler at prediction time; its prediction path uses raw feature values directly."),
+  ];
+}
+
+// ─── SECTION 6 — Free Topic (placeholder) ────────────────────────────────────
+function section6() {
+  return [
+    h1("6. Free Topic — ML Algorithm Study"),
+    body("[ This section is reserved for the Free Topic submission. Content to be added. ]"),
+    spacer(200),
+  ];
+}
+
+// ─── SECTION 7 — Task Assignment ─────────────────────────────────────────────
+function section7() {
+  const taskData = [
+    ["Yahia Zakaria Shazly", "Project architecture design; dual-pipeline implementation; normalization analysis; model comparison visualizations; MarkDown sensitivity analysis; report writing (Sections 3–5).", "35%"],
+    ["Ahmed Hassan Shata", "Data preparation and cleaning; EDA and feature engineering; Linear Regression and XGBoost implementation; residual analysis; report writing (Sections 1–2).", "35%"],
+    ["Omar El-Beltagy", "Streamlit deployment; model serialization and pipeline file management; integration testing; report editing and formatting.", "30%"],
+  ];
+
+  const colWidths = [2200, 5160, 2000];
+
+  return [
+    h1("7. Task Assignment"),
+    spacer(80),
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      columnWidths: colWidths,
+      rows: [
+        new TableRow({
+          tableHeader: true,
+          children: ["Student Name", "Tasks Performed", "Contribution"].map((t, ci) => new TableCell({
+            borders,
+            width: { size: colWidths[ci], type: WidthType.DXA },
+            shading: { fill: "1F4E79", type: ShadingType.CLEAR },
+            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+            children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: t, bold: true, size: 20, font: "Arial", color: "FFFFFF" })] })]
+          }))
+        }),
+        ...taskData.map((row, ri) => new TableRow({
+          children: row.map((c, ci) => new TableCell({
+            borders,
+            width: { size: colWidths[ci], type: WidthType.DXA },
+            shading: { fill: ri % 2 === 0 ? "EBF3FB" : "FFFFFF", type: ShadingType.CLEAR },
+            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+            children: [new Paragraph({ alignment: ci === 2 ? AlignmentType.CENTER : AlignmentType.LEFT, children: [new TextRun({ text: c, size: 20, font: "Arial" })] })]
+          }))
+        }))
+      ]
+    }),
+    spacer(400),
+    body("Each team member confirms equal awareness of the complete project scope and has reviewed the final report prior to submission."),
+    spacer(200),
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      columnWidths: [3120, 3120, 3120],
+      rows: [
+        new TableRow({
+          children: [
+            ["Yahia Zakaria Shazly", "Signature: _______________"],
+            ["Ahmed Hassan Shata", "Signature: _______________"],
+            ["Omar El-Beltagy", "Signature: _______________"],
+          ].map(([name, sig]) => new TableCell({
+            borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+            width: { size: 3120, type: WidthType.DXA },
+            margins: { top: 80, bottom: 80, left: 80, right: 80 },
+            children: [
+              new Paragraph({ children: [new TextRun({ text: name, bold: true, size: 20, font: "Arial" })] }),
+              new Paragraph({ children: [new TextRun({ text: sig, size: 20, font: "Arial", color: "595959" })] }),
+            ]
+          }))
+        })
+      ]
+    }),
+  ];
+}
+
+// ─── APPENDIX ─────────────────────────────────────────────────────────────────
+function appendix() {
+  return [
+    pageBreak(),
+    h1("8. Appendix"),
+    h2("A. Full Model Performance Summary"),
+    spacer(60),
+    metricsTable(
+      ["Model", "Pipeline", "MAE ($)", "RMSE ($)", "Test R²", "Train R²", "Train Time"],
+      [
+        ["Random Forest", "Normalized", "2,653.58", "5,297.52", "0.9417", "0.9914", "~337s"],
+        ["Random Forest", "Unnormalized", "2,653.04", "5,284.25", "0.9420", "0.9914", "~310s"],
+        ["Linear Regression", "Normalized", "7,981.93", "12,126.47", "0.6947", "0.6479", "~6s"],
+        ["XGBoost", "Unnormalized", "3,908.41", "6,261.15", "0.9201", "0.9183", "~14s"],
+      ]
+    ),
+    spacer(120),
+    h2("B. Feature Engineering Pipeline Summary"),
+    bullet("MarkDown: Fill NaN→0, clip negatives, aggregate sum of MD1–MD5"),
+    bullet("IsHoliday: Boolean cast to integer (0/1)"),
+    bullet("One-hot encoding: Store, Dept, Type (drop_first=True) → 133 total features"),
+    bullet("Outlier capping: IQR-based on Temperature, Fuel_Price, CPI, Unemployment"),
+    bullet("Normalization (Pipeline 1 only): MinMaxScaler on Temperature, Fuel_Price, CPI, Unemployment, MarkDown"),
+    spacer(120),
+    h2("C. Saved Model Artifacts"),
+    spacer(60),
+    metricsTable(
+      ["Filename", "Pipeline", "Size", "Description"],
+      [
+        ["model_norm.pkl", "Normalized RF", "~2.9 GB", "Trained Random Forest — normalized pipeline"],
+        ["model_raw.pkl", "Unnormalized RF", "~2.9 GB", "Trained Random Forest — unnormalized pipeline"],
+        ["scaler.pkl", "Normalized", "1.2 KB", "MinMaxScaler fitted on training data only"],
+        ["feature_names_norm.json", "Normalized", "1.5 KB", "Ordered feature column list for normalized model"],
+        ["feature_names_raw.json", "Unnormalized", "1.5 KB", "Ordered feature column list for raw model"],
+        ["linear_regression_model.pkl", "Normalized", "4.2 KB", "Trained Linear Regression model"],
+        ["feature_names_linear.json", "Normalized", "1.5 KB", "Feature column list for Linear Regression"],
+        ["xgboost_model.pkl", "Unnormalized", "1,111 KB", "Trained XGBoost model"],
+        ["xgboost_feature_names.json", "Unnormalized", "1.5 KB", "Feature column list for XGBoost"],
+      ]
+    ),
+  ];
+}
+
+// ─── BUILD DOCUMENT ───────────────────────────────────────────────────────────
+const doc = new Document({
+  numbering: {
+    config: [
+      { reference: "bullets", levels: [
+        { level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT,
+          style: { paragraph: { indent: { left: 720, hanging: 360 } } } },
+        { level: 1, format: LevelFormat.BULLET, text: "○", alignment: AlignmentType.LEFT,
+          style: { paragraph: { indent: { left: 1080, hanging: 360 } } } }
+      ]},
+      { reference: "numbers", levels: [
+        { level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
+          style: { paragraph: { indent: { left: 720, hanging: 360 } } } },
+      ]},
+    ]
+  },
+  styles: {
+    default: { document: { run: { font: "Arial", size: 22 } } },
+    paragraphStyles: [
+      { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 32, bold: true, font: "Arial", color: "1F4E79" },
+        paragraph: { spacing: { before: 360, after: 120 }, outlineLevel: 0 } },
+      { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 26, bold: true, font: "Arial", color: "2E75B6" },
+        paragraph: { spacing: { before: 240, after: 80 }, outlineLevel: 1 } },
+      { id: "Heading3", name: "Heading 3", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 24, bold: true, font: "Arial", color: "2E74B5" },
+        paragraph: { spacing: { before: 180, after: 60 }, outlineLevel: 2 } },
+    ]
+  },
+  sections: [{
+    properties: {
+      page: {
+        size: { width: 12240, height: 15840 },
+        margin: { top: 1440, right: 1260, bottom: 1440, left: 1260 }
+      }
+    },
+    headers: {
+      default: new Header({ children: [
+        new Paragraph({
+          border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "1F4E79", space: 1 } },
+          spacing: { after: 80 },
+          children: [
+            new TextRun({ text: "Walmart Retail Sales Forecasting  |  ECE471 Machine Learning  |  Nile University", size: 18, font: "Arial", color: "595959" }),
+          ]
+        })
+      ]})
+    },
+    footers: {
+      default: new Footer({ children: [
+        new Paragraph({
+          border: { top: { style: BorderStyle.SINGLE, size: 4, color: "1F4E79", space: 1 } },
+          spacing: { before: 60 },
+          children: [
+            new TextRun({ text: "Page ", size: 18, font: "Arial", color: "595959" }),
+            new TextRun({ children: [PageNumber.CURRENT], size: 18, font: "Arial", color: "595959" }),
+            new TextRun({ text: "  of  ", size: 18, font: "Arial", color: "595959" }),
+            new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, font: "Arial", color: "595959" }),
+          ]
+        })
+      ]})
+    },
+    children: [
+      ...coverSection(),
+      ...section1(),
+      pageBreak(),
+      ...section2(),
+      pageBreak(),
+      ...section3(),
+      pageBreak(),
+      ...section4(),
+      pageBreak(),
+      ...section5(),
+      pageBreak(),
+      ...section6(),
+      pageBreak(),
+      ...section7(),
+      ...appendix(),
+    ]
+  }]
+});
+
+Packer.toBuffer(doc).then(buf => {
+  fs.writeFileSync('/home/claude/walmart_ml_report.docx', buf);
+  console.log('Done. Size:', buf.length, 'bytes');
+}).catch(e => { console.error(e); process.exit(1); });
