@@ -38,6 +38,7 @@ The project walks through a full ML workflow on the classic [Walmart Recruiting 
 ├── ML_Presentation.pptx
 ├── Poster-ml.pptx
 ├── walmart_ml_report_v2 (1).docx
+├── walmart_ml_report_v2 (1).pdf
 └── requirements.txt
 ```
 
@@ -78,6 +79,7 @@ Source: Kaggle's Walmart Recruiting — Store Sales Forecasting competition data
 
 ## Docs
 
-- [`walmart_ml_report_v2 (1).docx`](./walmart_ml_report_v2%20(1).docx) — full write-up
+- [`walmart_ml_report_v2 (1).pdf`](./walmart_ml_report_v2%20(1).pdf) — full write-up (opens inline on GitHub)
+- [`walmart_ml_report_v2 (1).docx`](./walmart_ml_report_v2%20(1).docx) — same report, editable Word version
 - [`Poster-ml.pptx`](./Poster-ml.pptx) — project poster
 - [`ML_Presentation.pptx`](./ML_Presentation.pptx) — slide deck
